@@ -33,6 +33,7 @@ label{font-size:12px;font-weight:600;display:block;margin-bottom:4px}
 label small{font-weight:400;color:var(--muted)}
 input,select,textarea{width:100%;padding:7px 9px;border:1.5px solid var(--border);border-radius:8px;font:inherit;font-size:13px;background:#fff;color:var(--text)}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary)}
+input.bad{border-color:var(--red);background:var(--red-light)}
 input[readonly],input:disabled,select:disabled{background:#f1f5f9;color:var(--muted)}
 textarea{resize:none;height:34px}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -51,6 +52,9 @@ textarea{resize:none;height:34px}
 .btn{padding:11px 16px;border:none;border-radius:var(--r);background:var(--primary);color:#fff;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
 .btn:disabled{opacity:.5}
 .btn.ghost{background:#fff;color:var(--text);border:1.5px solid var(--border);font-size:12px;padding:9px 12px}
+a.btn{display:block;text-align:center;text-decoration:none}
+#sync{background:#188038;color:#fff;border-color:#188038;font-weight:700}
+#sync:hover{background:#137333;border-color:#137333}
 .btn.danger{background:#fff;color:var(--red);border:1.5px solid #fca5a5;font-size:12px;padding:9px 12px}
 .actions{display:flex;flex-direction:column;gap:8px}
 .actions .r{display:flex;gap:8px}
@@ -121,8 +125,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}
           <div><label>Cycle</label><div class="seg" id="cycle"></div></div>
         </div>
         <div class="g3">
-          <div><label>Date administered</label><input type="date" id="date"></div>
-          <div><label>Time administered</label><input type="time" id="time"></div>
+          <div><label>Date administered</label><input type="text" id="date" placeholder="2609" inputmode="numeric" autocomplete="off"></div>
+          <div><label>Time administered</label><input type="text" id="time" placeholder="1530" inputmode="numeric" autocomplete="off"></div>
           <div><label>Analgesic</label>
             <select id="analgesic">
               <option value="">Select</option>
@@ -147,7 +151,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}
         <h2>Pass 2: nursing notes <small style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">(can be left and finished later)</small></h2>
         <div><label>Post-PRN pain score <small>(N/D = not documented)</small></label><div class="seg score" id="post"></div></div>
         <div class="g2">
-          <div><label>Time of post-PRN assessment</label><input type="time" id="postTime" disabled></div>
+          <div><label>Time of post-PRN assessment</label><input type="text" id="postTime" placeholder="1620" inputmode="numeric" autocomplete="off" disabled></div>
           <div></div>
         </div>
         <div><label>Response documented by end of shift? <small>(choosing one completes pass 2)</small></label><div class="seg" id="response"></div></div>
@@ -189,6 +193,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}
       <div class="banner hide" id="pendBanner"></div>
       <button class="btn ghost" id="csv">Export CSV (Excel template layout)</button>
       <button class="btn ghost" id="sync">Sync to Google Sheets</button>
+      <a class="btn ghost hide" id="lnkSheet" target="_blank" rel="noopener">Open Google Sheet</a>
+      <a class="btn ghost hide" id="lnkDb" target="_blank" rel="noopener">Open Supabase table</a>
     </div>
     <div class="card"><h2>Outcomes (% of eligible administrations)</h2><div id="tbl"></div></div>
   </div>
@@ -201,6 +207,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}
 const CFG = {
   SUPABASE_URL: 'https://mbkgtmuxojivlgxbzkdh.supabase.co',
   SUPABASE_KEY: 'sb_publishable_Mvl4zIgnoxJqvKJSCXlAMg_bKoxyph3',
+  SHEET_LINK: 'https://docs.google.com/spreadsheets/d/1iwBl_ZqcMvpZSahkDgHPM4U_BWTZJQvX-1IiXM91GTY/edit',   // paste your Google Sheet link here (the normal docs.google.com/spreadsheets/... address)
+  SUPABASE_LINK: 'https://supabase.com/dashboard/project/mbkgtmuxojivlgxbzkdh/editor',
   SHEETS_URL: 'https://script.google.com/macros/s/AKfycbxcz8y1RcOee_hME7XPnPswe6nyoebyCDCHsKL4e6-wmLLKoZrVZcc5bG-4GauEZ2v8LA/exec'
 };
 const TABLE = 'prn_audit';
@@ -250,6 +258,57 @@ function minsToPost(r) { if (!r.time_administered || !r.post_time) return ''; re
 function isEligible(r) { return !r.exclusion_reason; }
 function pending(r) { return !r.response_eos; }
 function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c])); }
+/* ---------- quick date and time typing ---------- */
+// time: 1530, 930, 9, 15:30, 15.30 -> HH:MM
+function parseTime(s) {
+  s = String(s || '').trim().replace(/\s+/g, '');
+  let m = s.match(/^(\d{1,2})[:.]?(\d{2})$/);
+  let hh, mm;
+  if (m) { hh = +m[1]; mm = +m[2]; }
+  else if ((m = s.match(/^(\d{1,2})$/))) { hh = +m[1]; mm = 0; }
+  else return null;
+  if (hh > 23 || mm > 59) return null;
+  return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+}
+// date (day first): 2609, 26/09, 26.09, 260926, 26092026, 26/09/26, 26/09/2026 -> YYYY-MM-DD
+// no year typed = this year, or last year if that would be in the future (audit dates are in the past)
+function inferYear(d, m) {
+  const now = new Date(), y = now.getFullYear();
+  return new Date(y, m - 1, d) > now ? y - 1 : y;
+}
+function parseDate(s) {
+  s = String(s || '').trim().replace(/\s+/g, '');
+  let d, m, y = null, mt;
+  if ((mt = s.match(/^(\d{1,2})[\/.\-](\d{1,2})(?:[\/.\-](\d{2}|\d{4}))?$/))) { d = +mt[1]; m = +mt[2]; if (mt[3]) y = +mt[3]; }
+  else if (/^\d{3,4}$/.test(s)) { d = +s.slice(0, s.length - 2); m = +s.slice(-2); }
+  else if (/^\d{6}$/.test(s)) { d = +s.slice(0, 2); m = +s.slice(2, 4); y = +s.slice(4); }
+  else if (/^\d{8}$/.test(s)) { d = +s.slice(0, 2); m = +s.slice(2, 4); y = +s.slice(4); }
+  else return null;
+  if (y !== null && y < 100) y += 2000;
+  if (y === null) y = inferYear(d, m);
+  const dt = new Date(y, m - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+// shows dd/mm when typing dd/mm would give the same date again, otherwise dd/mm/yyyy so it is never ambiguous
+function fmtDate(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  const short = d + '/' + m;
+  return parseDate(short) === iso ? short : d + '/' + m + '/' + y;
+}
+function wireSmart(id, parse, fmt) {
+  const el = $(id);
+  const apply = () => {
+    const v = el.value.trim();
+    if (!v) { el.classList.remove('bad'); return; }
+    const p = parse(v);
+    if (p) { el.value = fmt(p); el.classList.remove('bad'); } else el.classList.add('bad');
+  };
+  el.addEventListener('blur', apply);
+  el.addEventListener('keydown', e => { if (e.key === 'Enter' && !(e.ctrlKey || e.metaKey)) { e.preventDefault(); apply(); } });
+  el.addEventListener('input', () => { el.classList.remove('bad'); if (id !== 'date' && /^\d{4}$/.test(el.value)) apply(); });
+}
 function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 
@@ -297,7 +356,7 @@ function resetForm(keep) {
   S = freshState(keep);
   $('prnId').value = nextId();
   $('patientId').value = keep?.patient || '';
-  $('date').value = keep?.date || '';
+  $('date').value = keep?.date ? fmtDate(keep.date) : '';
   $('time').value = '';
   $('analgesic').value = keep?.analgesic || '';
   syncOther();
@@ -313,7 +372,7 @@ function resetForm(keep) {
 function loadForEdit(r) {
   editing = r.prn_id;
   $('prnId').value = r.prn_id; $('patientId').value = r.patient_id;
-  $('date').value = r.date_administered; $('time').value = r.time_administered;
+  $('date').value = fmtDate(r.date_administered); $('time').value = r.time_administered;
   const known = [...$('analgesic').options].some(o => o.value === r.analgesic && o.value !== 'Other');
   $('analgesic').value = known ? r.analgesic : 'Other';
   syncOther();
@@ -357,7 +416,9 @@ async function save() {
   const pid = $('patientId').value.trim().toUpperCase();
   if (!pid) return showErr('Enter a patient ID');
   if (!S.cycle) return showErr('Choose the cycle (Baseline or Re-audit)');
-  if (!$('date').value || !$('time').value) return showErr('Enter date and time administered');
+  const dISO = parseDate($('date').value), tHM = parseTime($('time').value);
+  if (!dISO) return showErr('Enter a valid date, e.g. 2609 for 26/09');
+  if (!tHM) return showErr('Enter a valid time, e.g. 1530');
   if (!analgesic) return showErr('Choose the analgesic');
   if ($('dose').value === '') return showErr('Enter the dose');
   if (!$('route').value) return showErr('Choose the route');
@@ -368,12 +429,14 @@ async function save() {
   if (S.pre !== 'ND' && S.preSource === 'Not documented') return showErr('A pre-score is entered, so pick eMAR note or Nursing notes as the source');
   if (!S.response && ((S.post !== null && S.post !== undefined) || $('postTime').value)) return showErr('Choose the response documented option to complete pass 2, or clear the post-score');
   const hasPost = S.post !== null && S.post !== undefined && S.post !== 'ND';
+  const pHM = hasPost && $('postTime').value.trim() ? parseTime($('postTime').value) : null;
+  if (hasPost && $('postTime').value.trim() && !pHM) return showErr('Enter the post-assessment time like 1620');
   const row = {
     prn_id: $('prnId').value,
     patient_id: pid,
     cycle: S.cycle,
-    date_administered: $('date').value,
-    time_administered: $('time').value,
+    date_administered: dISO,
+    time_administered: tHM,
     analgesic,
     dose_mg: Number($('dose').value),
     route: $('route').value,
@@ -381,7 +444,7 @@ async function save() {
     pre_score: S.pre === 'ND' ? null : Number(S.pre),
     pre_source: S.preSource,
     post_score: hasPost ? Number(S.post) : null,
-    post_time: hasPost && $('postTime').value ? $('postTime').value : null,
+    post_time: pHM,
     response_eos: S.response || null,
     exclusion_reason: $('exclusion').value || null,
     comments: $('comments').value.trim()
@@ -514,6 +577,9 @@ fitScale();
   $('mode').className = 'pill' + (REMOTE ? ' ok' : '');
   $('analgesic').onchange = () => { syncOther(); if ($('analgesic').value === 'Other') $('analgesicOther').focus(); };
   $('patientId').oninput = renderRecent;
+  wireSmart('date', parseDate, fmtDate);
+  wireSmart('time', parseTime, v => v);
+  wireSmart('postTime', parseTime, v => v);
   document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && $('v-add').classList.contains('active')) { e.preventDefault(); save(); } });
   $('save').onclick = save;
   $('cancelEdit').onclick = () => resetForm({cycle: S.cycle});
@@ -524,6 +590,8 @@ fitScale();
   $('search').oninput = renderList;
   $('csv').onclick = exportCsv;
   $('sync').onclick = syncSheets;
+  if (CFG.SHEET_LINK) { $('lnkSheet').href = CFG.SHEET_LINK; $('lnkSheet').classList.remove('hide'); }
+  if (CFG.SUPABASE_LINK) { $('lnkDb').href = CFG.SUPABASE_LINK; $('lnkDb').classList.remove('hide'); }
   document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => setView(b.dataset.v));
   try { await refresh(); } catch (e) { $('sub').textContent = 'Could not load: ' + e.message; }
   resetForm({cycle: lsGet('prn_cycle')});
