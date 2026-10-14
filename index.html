@@ -3,7 +3,659 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>PRN Audit</title><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>PRN Audit</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f4f6fb;--card:#fff;--primary:#1d4ed8;--primary-light:#eff6ff;--primary-border:#bfdbfe;--text:#0f172a;--muted:#64748b;--border:#e2e8f0;--green:#15803d;--green-light:#f0fdf4;--red:#b91c1c;--red-light:#fef2f2;--amber:#b45309;--amber-light:#fffbeb;--orange:#c55a11;--r:12px}
+html,body{height:100%}
+body{font-family:'Sora',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:13px;background:var(--bg);color:var(--text)}
+.app{--z:1;width:100%;height:calc(100vh / var(--z));margin:0 auto;display:flex;flex-direction:column}
+.topbar{flex:none;background:var(--card);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:24px}
+.topbar h1{font-size:15px;font-weight:700;white-space:nowrap}
+.topbar small{display:block;font-size:12px;color:var(--muted);margin-top:1px}
+.tabs{display:flex;gap:4px;flex:1}
+.tabs button{padding:8px 18px;border:none;background:none;border-radius:8px;font:inherit;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer}
+.tabs button.on{background:var(--primary-light);color:var(--primary)}
+.pill{font-size:11px;font-weight:600;padding:4px 9px;border-radius:99px;background:var(--amber-light);color:var(--amber)}
+.pill.ok{background:var(--green-light);color:var(--green)}
+.view{display:none;flex:1;min-height:0;padding:14px 20px;overflow:auto;gap:14px;align-content:start}
+.view.active{display:grid}
+#v-add{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) 290px}
+#v-sum{grid-template-columns:290px minmax(0,1fr)}
+#v-list{display:none;grid-template-rows:auto minmax(0,1fr)}
+#v-list.active{display:grid}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:10px}
+.card h2{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--primary)}
+.card.p2 h2{color:var(--orange)}
+label{font-size:12px;font-weight:600;display:block;margin-bottom:4px}
+label small{font-weight:400;color:var(--muted)}
+input,select,textarea{width:100%;padding:7px 9px;border:1.5px solid var(--border);border-radius:8px;font:inherit;font-size:13px;background:#fff;color:var(--text)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary)}
+input.bad{border-color:var(--red);background:var(--red-light)}
+input[readonly],input:disabled,select:disabled{background:#f1f5f9;color:var(--muted)}
+textarea{resize:none;height:34px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.g3b{display:grid;grid-template-columns:1fr 2fr;gap:10px}
+.seg{display:flex;gap:6px}
+.seg button{flex:1;padding:7px 4px;border:1.5px solid var(--border);background:#fff;border-radius:8px;font:inherit;font-size:12px;font-weight:600;color:var(--text);cursor:pointer;white-space:nowrap}
+.seg button:hover{border-color:var(--primary)}
+.seg button.on{background:var(--primary);border-color:var(--primary);color:#fff}
+.p2 .seg button.on{background:var(--orange);border-color:var(--orange)}
+.seg.score{display:grid;grid-template-columns:repeat(12,1fr);gap:4px}
+.seg.score button{padding:8px 0;min-width:0}
+.seg button.nd.on{background:var(--red);border-color:var(--red)}
+.hint{font-size:11px;color:var(--muted)}
+.hint.warn{color:var(--amber)}
+.btn{padding:11px 16px;border:none;border-radius:var(--r);background:var(--primary);color:#fff;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.btn:disabled{opacity:.5}
+.btn.ghost{background:#fff;color:var(--text);border:1.5px solid var(--border);font-size:12px;padding:9px 12px}
+a.btn{display:block;text-align:center;text-decoration:none}
+#sync{background:#188038;color:#fff;border-color:#188038;font-weight:700}
+#sync:hover{background:#137333;border-color:#137333}
+.btn.danger{background:#fff;color:var(--red);border:1.5px solid #fca5a5;font-size:12px;padding:9px 12px}
+.actions{display:flex;flex-direction:column;gap:8px}
+.actions .r{display:flex;gap:8px}
+.actions .r .btn{flex:1}
+.kbd{font-size:11px;color:var(--muted);text-align:center}
+.err{background:var(--red-light);color:var(--red);padding:8px 10px;border-radius:8px;font-size:12px;font-weight:600;display:none}
+.stat{background:var(--primary-light);border:1px solid var(--primary-border);border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:baseline}
+.stat b{font-size:18px;font-weight:700}
+.stat span{font-size:12px;color:var(--muted)}
+.banner{background:var(--amber-light);color:var(--amber);border-radius:10px;padding:9px 11px;font-size:12px;font-weight:600}
+.chips{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.chips button{padding:6px 12px;border:1.5px solid var(--border);background:#fff;border-radius:99px;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+.chips button.on{background:var(--text);color:#fff;border-color:var(--text)}
+.chips input{width:260px;margin-left:auto}
+.recent{display:flex;flex-direction:column;gap:6px;overflow:auto;max-height:calc(100vh / var(--z) - 150px)}
+.rec{border:1px solid var(--border);border-radius:9px;padding:8px 10px;cursor:pointer;background:#fff}
+.rec:hover{border-color:var(--primary)}
+.rec .l{font-size:12px;font-weight:600;display:flex;justify-content:space-between;gap:6px}
+.rec .s{font-size:11px;color:var(--muted);margin-top:2px}
+.tag{font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;white-space:nowrap;background:#f1f5f9;color:var(--muted)}
+.tag.pend{background:var(--amber-light);color:var(--amber)}
+.tag.ok{background:var(--green-light);color:var(--green)}
+.tag.bad{background:var(--red-light);color:var(--red)}
+.tblwrap{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:auto;min-height:0}
+table{width:100%;border-collapse:collapse;font-size:12px}
+.tblwrap th{position:sticky;top:0;background:#f8fafc;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+.tblwrap td{padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+.tblwrap tr.row{cursor:pointer}
+.tblwrap tr.row:hover{background:var(--primary-light)}
+.tblwrap tr.excl td{color:#94a3b8}
+.otbl th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:center;padding:6px 8px}
+.otbl th:first-child,.otbl td:first-child{text-align:left}
+.otbl td{padding:9px 8px;border-top:1px solid var(--border);text-align:center;vertical-align:top}
+.otbl td .m{font-weight:600;font-size:13px}
+.otbl td .st{display:block;font-size:11px;color:var(--muted);font-weight:400;margin-top:2px}
+.otbl td b{font-size:16px}
+.otbl td .n{display:block;font-size:11px;color:var(--muted)}
+.otbl td.sub1 .m{padding-left:16px;font-weight:500}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:10px 16px;border-radius:99px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50}
+.toast.show{opacity:1}
+.hide{display:none!important}
+body.locked .app{display:none}
+#gate{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:100}
+#gate .gc{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:32px 36px;width:340px;max-width:90vw;display:flex;flex-direction:column;gap:14px;text-align:center}
+#gate h1{font-size:17px;font-weight:700}
+#gate p{font-size:13px;color:var(--muted)}
+#gate input{text-align:center;font-size:26px;letter-spacing:.5em;padding:12px 12px 12px calc(12px + .5em)}
+#gate .gerr{font-size:12px;font-weight:600;color:var(--red);min-height:16px}
+#gate.shake .gc{animation:shake .3s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+@media (max-width:1100px){#v-add{grid-template-columns:1fr 1fr}#v-add .col:last-child{grid-column:1/-1}.recent{max-height:240px}}
+@media (max-width:760px){#v-add,#v-sum{grid-template-columns:1fr}}
+</style>
+</head>
+<body class="locked">
+<div class="app">
+  <div class="topbar">
+    <div><h1>PRN Analgesia Audit</h1><small id="sub">Loading</small></div>
+    <div class="tabs">
+      <button class="on" data-v="add">Add entry</button>
+      <button data-v="list">Entries</button>
+      <button data-v="sum">Summary</button>
+    </div>
+    <span class="pill" id="mode"></span>
+  </div>
+
+  <!-- ADD -->
+  <div class="view active" id="v-add">
+    <div class="col">
+      <div class="card">
+        <h2 id="formTitle">New entry &middot; Pass 1: eMAR</h2>
+        <div class="g3b">
+          <div class="g2">
+            <div><label>PRN ID</label><input id="prnId" readonly></div>
+            <div><label>Patient ID</label><input id="patientId" list="pts" placeholder="P001" autocapitalize="characters" autocomplete="off"><datalist id="pts"></datalist></div>
+          </div>
+          <div><label>Cycle</label><div class="seg" id="cycle"></div></div>
+        </div>
+        <div class="g3">
+          <div><label>Date administered</label><input type="text" id="date" placeholder="2609" inputmode="numeric" autocomplete="off"></div>
+          <div><label>Time administered</label><input type="text" id="time" placeholder="1530" inputmode="numeric" autocomplete="off"></div>
+          <div><label>Analgesic</label>
+            <select id="analgesic">
+              <option value="">Select</option>
+              <option>Morphine</option><option>Oxycodone</option><option>Fentanyl</option><option>Alfentanil</option><option>Hydromorphone</option><option>Diamorphine</option><option>Paracetamol</option><option>Other</option>
+            </select></div>
+        </div>
+        <div class="g3">
+          <div><label>Dose (mg)</label><input type="number" id="dose" step="any" min="0"></div>
+          <div><label>Route</label>
+            <select id="route"><option value="">Select</option><option>PO</option><option>SC</option><option>IV</option><option>SL</option><option>TD</option><option>PR</option><option>Other</option></select></div>
+          <div><label>Other analgesic <small>(if Other)</small></label><input id="analgesicOther" placeholder="Name" disabled></div>
+        </div>
+        <div><label>Indication <small>(from eMAR note)</small></label><div class="seg" id="indication"></div>
+          <div class="hint warn hide" id="breathHint" style="margin-top:4px">Breathlessness exclusion rule is not agreed yet. Set an exclusion reason only if you apply it.</div></div>
+        <div><label>Pre-PRN pain score <small>(number only, N/D = not documented)</small></label><div class="seg score" id="pre"></div></div>
+        <div><label>Pre-score source</label><div class="seg" id="preSource"></div></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="card p2">
+        <h2>Pass 2: nursing notes <small style="text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted)">(can be left and finished later)</small></h2>
+        <div><label>Post-PRN pain score <small>(N/D = not documented)</small></label><div class="seg score" id="post"></div></div>
+        <div class="g2">
+          <div><label>Time of post-PRN assessment</label><input type="text" id="postTime" placeholder="1620" inputmode="numeric" autocomplete="off" disabled></div>
+          <div></div>
+        </div>
+        <div><label>Response documented by end of shift? <small>(choosing one completes pass 2)</small></label><div class="seg" id="response"></div></div>
+      </div>
+      <div class="card">
+        <h2>Other</h2>
+        <div class="g3b">
+          <div><label>Exclusion reason</label>
+            <select id="exclusion"><option value="">None (eligible)</option><option>Breathlessness indication</option><option>Record unreliable or incomplete</option><option>Other (see comments)</option></select></div>
+          <div><label>Comments</label><textarea id="comments" placeholder="Optional"></textarea></div>
+        </div>
+      </div>
+      <div class="actions">
+        <div class="err" id="err"></div>
+        <div class="r"><button class="btn" id="save">Save entry</button></div>
+        <div class="r"><button class="btn ghost hide" id="cancelEdit">Cancel edit</button><button class="btn danger hide" id="del">Delete entry</button></div>
+        <div class="kbd">Ctrl + Enter saves</div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="card">
+        <h2 id="recTitle">Recent entries</h2>
+        <div class="recent" id="recent"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ENTRIES -->
+  <div class="view" id="v-list">
+    <div class="chips" id="filters"><input id="search" placeholder="Search patient ID or analgesic"></div>
+    <div class="tblwrap"><table id="listTbl"></table></div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="view" id="v-sum">
+    <div class="col">
+      <div id="stats" class="col" style="gap:8px"></div>
+      <div class="banner hide" id="pendBanner"></div>
+      <button class="btn ghost" id="csv">Export CSV (Excel template layout)</button>
+      <button class="btn ghost" id="sync">Sync to Google Sheets</button>
+      <a class="btn ghost hide" id="lnkSheet" target="_blank" rel="noopener">Open Google Sheet</a>
+      <a class="btn ghost hide" id="lnkDb" target="_blank" rel="noopener">Open Supabase table</a>
+    </div>
+    <div class="card"><h2>Outcomes (% of eligible administrations)</h2><div id="tbl"></div></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<div id="gate">
+  <div class="gc">
+    <h1>PRN Analgesia Audit</h1>
+    <p>Enter passcode</p>
+    <input id="gateInput" type="password" inputmode="numeric" maxlength="4" autocomplete="off" autofocus>
+    <div class="gerr" id="gateErr"></div>
+  </div>
+</div>
+
+<script>
+/* ---------- CONFIG ----------
+   Leave SUPABASE_* blank to test locally (data stays in this browser). */
+const CFG = {
+  SUPABASE_URL: 'https://mbkgtmuxojivlgxbzkdh.supabase.co',
+  SUPABASE_KEY: 'sb_publishable_Mvl4zIgnoxJqvKJSCXlAMg_bKoxyph3',
+  SHEET_LINK: 'https://docs.google.com/spreadsheets/d/1iwBl_ZqcMvpZSahkDgHPM4U_BWTZJQvX-1IiXM91GTY/edit',   // paste your Google Sheet link here (the normal docs.google.com/spreadsheets/... address)
+  SUPABASE_LINK: 'https://supabase.com/dashboard/project/mbkgtmuxojivlgxbzkdh/editor',
+  SHEETS_URL: 'https://script.google.com/macros/s/AKfycbxcz8y1RcOee_hME7XPnPswe6nyoebyCDCHsKL4e6-wmLLKoZrVZcc5bG-4GauEZ2v8LA/exec'
+};
+const TABLE = 'prn_audit';
+const REMOTE = !!(CFG.SUPABASE_URL && CFG.SUPABASE_KEY);
+// New style sb_publishable_ keys go in apikey only. Old style JWT (eyJ...) anon keys also need the Bearer header.
+const HDR = REMOTE ? Object.assign({apikey: CFG.SUPABASE_KEY, 'Content-Type': 'application/json'}, CFG.SUPABASE_KEY.startsWith('eyJ') ? {Authorization: 'Bearer ' + CFG.SUPABASE_KEY} : {}) : {};
+
+/* ---------- STORAGE ---------- */
+const store = {
+  async list() {
+    if (!REMOTE) return JSON.parse(localStorage.getItem('prn_local_v2') || '[]');
+    const r = await fetch(`${CFG.SUPABASE_URL}/rest/v1/${TABLE}?select=*&order=prn_id.asc&limit=10000`, {headers: HDR});
+    if (!r.ok) throw new Error('Load failed (' + r.status + ')');
+    return r.json();
+  },
+  async insert(row) {
+    if (!REMOTE) { const a = await this.list(); a.push(row); localStorage.setItem('prn_local_v2', JSON.stringify(a)); return; }
+    const r = await fetch(`${CFG.SUPABASE_URL}/rest/v1/${TABLE}`, {method: 'POST', headers: {...HDR, Prefer: 'return=minimal'}, body: JSON.stringify(row)});
+    if (!r.ok) throw new Error('Save failed (' + r.status + ')');
+  },
+  async update(id, row) {
+    if (!REMOTE) { const a = await this.list(); const i = a.findIndex(x => x.prn_id === id); a[i] = row; localStorage.setItem('prn_local_v2', JSON.stringify(a)); return; }
+    const r = await fetch(`${CFG.SUPABASE_URL}/rest/v1/${TABLE}?prn_id=eq.${encodeURIComponent(id)}`, {method: 'PATCH', headers: {...HDR, Prefer: 'return=minimal'}, body: JSON.stringify(row)});
+    if (!r.ok) throw new Error('Update failed (' + r.status + ')');
+  },
+  async remove(id) {
+    if (!REMOTE) { const a = (await this.list()).filter(x => x.prn_id !== id); localStorage.setItem('prn_local_v2', JSON.stringify(a)); return; }
+    const r = await fetch(`${CFG.SUPABASE_URL}/rest/v1/${TABLE}?prn_id=eq.${encodeURIComponent(id)}`, {method: 'DELETE', headers: HDR});
+    if (!r.ok) throw new Error('Delete failed (' + r.status + ')');
+  }
+};
+
+/* ---------- HELPERS ---------- */
+const $ = id => document.getElementById(id);
+let rows = [];
+let editing = null;
+let S = {};
+let filter = 'all';
+
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 1800); }
+function showErr(msg) { const e = $('err'); e.textContent = msg; e.style.display = msg ? 'block' : 'none'; if (msg) e.scrollIntoView({block: 'center'}); }
+function pad(n) { return String(n).padStart(3, '0'); }
+function nextId() { const nums = rows.map(r => parseInt(r.prn_id, 10)).filter(n => !isNaN(n)); return pad((nums.length ? Math.max(...nums) : 0) + 1); }
+function ddmmyyyy(iso) { if (!iso) return ''; const [y, m, d] = iso.split('-'); return `${d}/${m}/${y}`; }
+function mins(t) { const [h, m] = t.split(':').map(Number); return h * 60 + m; }
+function minsToPost(r) { if (!r.time_administered || !r.post_time) return ''; return ((mins(r.post_time) - mins(r.time_administered)) % 1440 + 1440) % 1440; }
+function isEligible(r) { return !r.exclusion_reason; }
+function pending(r) { return !r.response_eos; }
+function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c])); }
+/* ---------- quick date and time typing ---------- */
+// time: 1530, 930, 9, 15:30, 15.30 -> HH:MM
+function parseTime(s) {
+  s = String(s || '').trim().replace(/\s+/g, '');
+  let m = s.match(/^(\d{1,2})[:.]?(\d{2})$/);
+  let hh, mm;
+  if (m) { hh = +m[1]; mm = +m[2]; }
+  else if ((m = s.match(/^(\d{1,2})$/))) { hh = +m[1]; mm = 0; }
+  else return null;
+  if (hh > 23 || mm > 59) return null;
+  return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+}
+// date (day first): 2609, 26/09, 26.09, 260926, 26092026, 26/09/26, 26/09/2026 -> YYYY-MM-DD
+// no year typed = this year, or last year if that would be in the future (audit dates are in the past)
+function inferYear(d, m) {
+  const now = new Date(), y = now.getFullYear();
+  return new Date(y, m - 1, d) > now ? y - 1 : y;
+}
+function parseDate(s) {
+  s = String(s || '').trim().replace(/\s+/g, '');
+  let d, m, y = null, mt;
+  if ((mt = s.match(/^(\d{1,2})[\/.\-](\d{1,2})(?:[\/.\-](\d{2}|\d{4}))?$/))) { d = +mt[1]; m = +mt[2]; if (mt[3]) y = +mt[3]; }
+  else if (/^\d{3,4}$/.test(s)) { d = +s.slice(0, s.length - 2); m = +s.slice(-2); }
+  else if (/^\d{6}$/.test(s)) { d = +s.slice(0, 2); m = +s.slice(2, 4); y = +s.slice(4); }
+  else if (/^\d{8}$/.test(s)) { d = +s.slice(0, 2); m = +s.slice(2, 4); y = +s.slice(4); }
+  else return null;
+  if (y !== null && y < 100) y += 2000;
+  if (y === null) y = inferYear(d, m);
+  const dt = new Date(y, m - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+// shows dd/mm when typing dd/mm would give the same date again, otherwise dd/mm/yyyy so it is never ambiguous
+function fmtDate(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  const short = d + '/' + m;
+  return parseDate(short) === iso ? short : d + '/' + m + '/' + y;
+}
+function wireSmart(id, parse, fmt) {
+  const el = $(id);
+  const apply = () => {
+    const v = el.value.trim();
+    if (!v) { el.classList.remove('bad'); return; }
+    const p = parse(v);
+    if (p) { el.value = fmt(p); el.classList.remove('bad'); } else el.classList.add('bad');
+  };
+  el.addEventListener('blur', apply);
+  el.addEventListener('keydown', e => { if (e.key === 'Enter' && !(e.ctrlKey || e.metaKey)) { e.preventDefault(); apply(); } });
+  el.addEventListener('input', () => { el.classList.remove('bad'); if (id !== 'date' && /^\d{4}$/.test(el.value)) apply(); });
+}
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+/* ---------- SEGMENTED CONTROLS ---------- */
+function buildSeg(id, opts, key, cls) {
+  const el = $(id); el.innerHTML = '';
+  opts.forEach(o => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = o.label; b.dataset.v = o.value;
+    if (o.value === 'ND') b.classList.add('nd');
+    b.onclick = () => {
+      S[key] = (S[key] === o.value && ['post', 'response', 'preSource'].includes(key)) ? null : o.value;
+      onChange(key); paintAll();
+    };
+    el.appendChild(b);
+  });
+}
+function paint(id, key) { [...$(id).children].forEach(b => b.classList.toggle('on', S[key] !== null && S[key] !== undefined && String(S[key]) === b.dataset.v)); }
+function paintAll() {
+  ['cycle', 'indication', 'pre', 'preSource', 'post', 'response'].forEach(k => paint(k, k));
+  const numPost = S.post !== null && S.post !== 'ND' && S.post !== undefined;
+  $('postTime').disabled = !numPost;
+  if (!numPost) $('postTime').value = '';
+  $('breathHint').classList.toggle('hide', S.indication !== 'Breathlessness');
+}
+function syncOther() {
+  const o = $('analgesic').value === 'Other';
+  $('analgesicOther').disabled = !o;
+  if (!o) $('analgesicOther').value = '';
+}
+function onChange(key) {
+  if (key === 'pre') {
+    if (S.pre === 'ND') S.preSource = 'Not documented';
+    else if (S.pre !== null && (!S.preSource || S.preSource === 'Not documented')) S.preSource = 'eMAR note';
+  }
+  if (key === 'post' && S.post !== null && S.post !== 'ND' && !S.response) S.response = 'Numerical score';
+}
+
+/* ---------- FORM ---------- */
+function freshState(keep) {
+  return {cycle: keep?.cycle || null, indication: null, pre: null, preSource: null, post: null, response: null};
+}
+function resetForm(keep) {
+  editing = null;
+  S = freshState(keep);
+  $('prnId').value = nextId();
+  $('patientId').value = keep?.patient || '';
+  $('date').value = keep?.date ? fmtDate(keep.date) : '';
+  $('time').value = '';
+  $('analgesic').value = keep?.analgesic || '';
+  syncOther();
+  if ($('analgesic').value === 'Other') $('analgesicOther').value = keep?.analgesicOther || '';
+  $('dose').value = keep?.dose ?? '';
+  $('route').value = keep?.route || '';
+  $('postTime').value = ''; $('exclusion').value = ''; $('comments').value = '';
+  $('formTitle').textContent = 'New entry · Pass 1: eMAR';
+  $('save').textContent = 'Save entry';
+  $('cancelEdit').classList.add('hide'); $('del').classList.add('hide');
+  showErr(''); paintAll(); renderRecent();
+}
+function loadForEdit(r) {
+  editing = r.prn_id;
+  $('prnId').value = r.prn_id; $('patientId').value = r.patient_id;
+  $('date').value = fmtDate(r.date_administered); $('time').value = r.time_administered;
+  const known = [...$('analgesic').options].some(o => o.value === r.analgesic && o.value !== 'Other');
+  $('analgesic').value = known ? r.analgesic : 'Other';
+  syncOther();
+  if (!known) $('analgesicOther').value = r.analgesic;
+  $('dose').value = r.dose_mg; $('route').value = r.route;
+  S = {
+    cycle: r.cycle, indication: r.indication,
+    pre: r.pre_score === null || r.pre_score === undefined ? 'ND' : String(r.pre_score),
+    preSource: r.pre_source,
+    post: r.response_eos ? (r.post_score === null || r.post_score === undefined ? 'ND' : String(r.post_score)) : (r.post_score === null || r.post_score === undefined ? null : String(r.post_score)),
+    response: r.response_eos || null
+  };
+  $('postTime').value = r.post_time || '';
+  $('exclusion').value = r.exclusion_reason || '';
+  $('comments').value = r.comments || '';
+  $('formTitle').textContent = 'Edit entry ' + r.prn_id;
+  $('save').textContent = 'Update entry';
+  $('cancelEdit').classList.remove('hide'); $('del').classList.remove('hide');
+  showErr(''); paintAll(); renderRecent(); setView('add');
+}
+
+/* recent entries panel: this patient's doses if a patient ID is typed, otherwise the latest entries */
+function renderRecent() {
+  const pid = $('patientId').value.trim().toUpperCase();
+  const mine = pid ? rows.filter(r => r.patient_id === pid) : [];
+  const items = (mine.length ? mine : rows).slice().sort((a, b) => (b.date_administered + b.time_administered).localeCompare(a.date_administered + a.time_administered)).slice(0, 30);
+  $('recTitle').textContent = mine.length ? 'Entries for ' + pid + ' (' + mine.length + ')' : 'Latest entries';
+  $('recent').innerHTML = items.length ? '' : '<div class="hint">No entries yet</div>';
+  items.forEach(r => {
+    const d = document.createElement('div'); d.className = 'rec';
+    const tag = !isEligible(r) ? '<span class="tag bad">Excluded</span>' : pending(r) ? '<span class="tag pend">Pass 2 pending</span>' : `<span class="tag ${r.response_eos === 'None' ? 'bad' : 'ok'}">${esc(r.response_eos)}</span>`;
+    d.innerHTML = `<div class="l"><span>${esc(r.prn_id)} &middot; ${esc(r.patient_id)}</span>${tag}</div><div class="s">${ddmmyyyy(r.date_administered)} ${esc(r.time_administered)} &middot; ${esc(r.analgesic)} ${esc(r.dose_mg)} mg ${esc(r.route)}</div><div class="s">Pre ${r.pre_score === null ? 'N/D' : r.pre_score} &middot; Post ${r.post_score === null ? 'N/D' : r.post_score}</div>`;
+    d.onclick = () => loadForEdit(r);
+    $('recent').appendChild(d);
+  });
+}
+
+async function save() {
+  showErr('');
+  const analgesic = $('analgesic').value === 'Other' ? $('analgesicOther').value.trim() : $('analgesic').value;
+  const pid = $('patientId').value.trim().toUpperCase();
+  if (!pid) return showErr('Enter a patient ID');
+  if (!S.cycle) return showErr('Choose the cycle (Baseline or Re-audit)');
+  const dISO = parseDate($('date').value), tHM = parseTime($('time').value);
+  if (!dISO) return showErr('Enter a valid date, e.g. 2609 for 26/09');
+  if (!tHM) return showErr('Enter a valid time, e.g. 1530');
+  if (!analgesic) return showErr('Choose the analgesic');
+  if ($('dose').value === '') return showErr('Enter the dose');
+  if (!$('route').value) return showErr('Choose the route');
+  if (!S.indication) return showErr('Choose the indication (or Not documented)');
+  if (S.pre === null) return showErr('Choose the pre-PRN pain score (or N/D)');
+  if (!S.preSource) return showErr('Choose the pre-score source');
+  if (S.pre === 'ND' && S.preSource !== 'Not documented') return showErr('Pre-score is N/D, so the source must be Not documented');
+  if (S.pre !== 'ND' && S.preSource === 'Not documented') return showErr('A pre-score is entered, so pick eMAR note or Nursing notes as the source');
+  if (!S.response && ((S.post !== null && S.post !== undefined) || $('postTime').value)) return showErr('Choose the response documented option to complete pass 2, or clear the post-score');
+  const hasPost = S.post !== null && S.post !== undefined && S.post !== 'ND';
+  const pHM = hasPost && $('postTime').value.trim() ? parseTime($('postTime').value) : null;
+  if (hasPost && $('postTime').value.trim() && !pHM) return showErr('Enter the post-assessment time like 1620');
+  const row = {
+    prn_id: $('prnId').value,
+    patient_id: pid,
+    cycle: S.cycle,
+    date_administered: dISO,
+    time_administered: tHM,
+    analgesic,
+    dose_mg: Number($('dose').value),
+    route: $('route').value,
+    indication: S.indication,
+    pre_score: S.pre === 'ND' ? null : Number(S.pre),
+    pre_source: S.preSource,
+    post_score: hasPost ? Number(S.post) : null,
+    post_time: pHM,
+    response_eos: S.response || null,
+    exclusion_reason: $('exclusion').value || null,
+    comments: $('comments').value.trim()
+  };
+  $('save').disabled = true;
+  try {
+    const wasEdit = !!editing;
+    if (wasEdit) await store.update(editing, row); else await store.insert(row);
+    await refresh();
+    toast(wasEdit ? 'Updated' : 'Saved ' + row.prn_id);
+    lsSet('prn_cycle', row.cycle);
+    // new entry: keep patient, cycle, date, drug, dose, route for the next dose on the same chart
+    resetForm(wasEdit ? {cycle: row.cycle} : {cycle: row.cycle, patient: pid, date: row.date_administered, analgesic: $('analgesic').value, analgesicOther: $('analgesicOther').value, dose: row.dose_mg, route: row.route});
+    if (!wasEdit) $('time').focus();
+  } catch (e) { showErr(e.message); }
+  $('save').disabled = false;
+}
+
+/* ---------- LIST ---------- */
+function renderFilters() {
+  const f = [['all', 'All'], ['pending', 'Pass 2 pending'], ['excluded', 'Excluded']];
+  const pc = rows.filter(r => pending(r) && isEligible(r)).length;
+  $('filters').querySelectorAll('button').forEach(b => b.remove());
+  f.forEach(([k, l]) => {
+    const b = document.createElement('button'); b.textContent = k === 'pending' ? `${l} (${pc})` : l;
+    b.className = filter === k ? 'on' : ''; b.onclick = () => { filter = k; renderList(); };
+    $('filters').insertBefore(b, $('search'));
+  });
+}
+function renderList() {
+  renderFilters();
+  const q = $('search').value.trim().toLowerCase();
+  let items = [...rows].reverse().filter(r => !q || r.patient_id.toLowerCase().includes(q) || r.analgesic.toLowerCase().includes(q));
+  if (filter === 'pending') items = items.filter(r => pending(r) && isEligible(r));
+  if (filter === 'excluded') items = items.filter(r => !isEligible(r));
+  const nd = v => v === null || v === undefined ? 'N/D' : v;
+  let h = '<thead><tr><th>ID</th><th>Patient</th><th>Cycle</th><th>Date</th><th>Time</th><th>Drug</th><th>Dose</th><th>Route</th><th>Indication</th><th>Pre</th><th>Source</th><th>Post</th><th>Post time</th><th>Response by end of shift</th><th>Status</th></tr></thead><tbody>';
+  items.forEach(r => {
+    const resp = pending(r) ? '<span class="tag pend">Pass 2 pending</span>' : `<span class="tag ${r.response_eos === 'None' ? 'bad' : 'ok'}">${esc(r.response_eos)}</span>`;
+    h += `<tr class="row ${isEligible(r) ? '' : 'excl'}" data-id="${esc(r.prn_id)}"><td>${esc(r.prn_id)}</td><td>${esc(r.patient_id)}</td><td>${esc(r.cycle)}</td><td>${ddmmyyyy(r.date_administered)}</td><td>${esc(r.time_administered)}</td><td>${esc(r.analgesic)}</td><td>${esc(r.dose_mg)} mg</td><td>${esc(r.route)}</td><td>${esc(r.indication)}</td><td>${nd(r.pre_score)}</td><td>${esc(r.pre_source)}</td><td>${nd(r.post_score)}</td><td>${esc(r.post_time || '')}</td><td>${resp}</td><td>${isEligible(r) ? '' : '<span class="tag bad" title="' + esc(r.exclusion_reason) + '">Excluded</span>'}</td></tr>`;
+  });
+  if (!items.length) h += '<tr><td colspan="15" class="hint" style="padding:16px">No entries</td></tr>';
+  $('listTbl').innerHTML = h + '</tbody>';
+  $('listTbl').querySelectorAll('tr.row').forEach(tr => tr.onclick = () => loadForEdit(rows.find(r => r.prn_id === tr.dataset.id)));
+}
+
+/* ---------- SUMMARY ---------- */
+const MEASURES = [
+  ['Response documented by end of shift', 'Approved standard (target 100%)', r => r.response_eos === 'Numerical score' || r.response_eos === 'Narrative only', 0],
+  ['of which numerical score', '', r => r.response_eos === 'Numerical score', 1],
+  ['of which narrative only', '', r => r.response_eos === 'Narrative only', 1],
+  ['Pre and post scores both documented', 'Proposed primary outcome, not yet agreed', r => r.pre_score !== null && r.post_score !== null, 0],
+  ['Pre-PRN score documented (any source)', 'Proposed secondary', r => r.pre_score !== null, 0],
+  ['Pre-PRN score in eMAR note', 'Proposed secondary, intervention target', r => r.pre_source === 'eMAR note' && r.pre_score !== null, 0],
+  ['Post-PRN score documented', 'Proposed secondary', r => r.post_score !== null, 0],
+  ['Indication documented in eMAR note', 'Descriptive', r => r.indication !== 'Not documented', 0]
+];
+function cycleStats(cycle) {
+  const all = rows.filter(r => r.cycle === cycle);
+  const el = all.filter(isEligible);
+  return {el, excl: all.length - el.length, pts: new Set(all.map(r => r.patient_id)).size};
+}
+function renderSummary() {
+  const B = cycleStats('Baseline'), R = cycleStats('Re-audit');
+  $('stats').innerHTML = `<div class="stat"><b>${B.el.length} / ${R.el.length}</b><span>Eligible (base / re)</span></div><div class="stat"><b>${B.excl} / ${R.excl}</b><span>Excluded</span></div><div class="stat"><b>${B.pts} / ${R.pts}</b><span>Patients</span></div>`;
+  const pc = rows.filter(r => pending(r) && isEligible(r)).length;
+  $('pendBanner').classList.toggle('hide', !pc);
+  $('pendBanner').textContent = pc + ' eligible ' + (pc === 1 ? 'entry still needs' : 'entries still need') + ' pass 2. Pass 2 outcomes are incomplete until they are done.';
+  const cell = (S2, fn) => { const n = S2.el.filter(fn).length; return S2.el.length ? `<b>${Math.round(n / S2.el.length * 100)}%</b><span class="n">${n}/${S2.el.length}</span>` : '<span class="n">-</span>'; };
+  let h = '<table class="otbl"><tr><th></th><th>Baseline</th><th>Re-audit</th></tr>';
+  MEASURES.forEach(([l, st, fn, ind]) => {
+    h += `<tr><td class="${ind ? 'sub1' : ''}"><span class="m">${esc(l)}</span>${st ? `<span class="st">${esc(st)}</span>` : ''}</td><td>${cell(B, fn)}</td><td>${cell(R, fn)}</td></tr>`;
+  });
+  $('tbl').innerHTML = h + '</table>';
+}
+
+/* ---------- EXPORT ---------- */
+function exportCsv() {
+  const head = ['PRN ID', 'Patient ID', 'Cycle', 'Date administered', 'Time administered', 'Analgesic', 'Dose (mg)', 'Route', 'Indication (eMAR note)', 'Pre-PRN pain score', 'Pre-score source', 'Post-PRN pain score', 'Time of post-PRN assessment', 'Post-PRN response documented by end of shift?', 'Exclusion reason', 'Comments', 'Both scores documented?', 'Mins to post-PRN assessment'];
+  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const n = v => v === null || v === undefined ? '' : v;
+  const lines = [head.map(q).join(',')];
+  rows.forEach(r => lines.push([
+    '="' + r.prn_id + '"', q(r.patient_id), q(r.cycle), q(ddmmyyyy(r.date_administered)), q(r.time_administered), q(r.analgesic), r.dose_mg, q(r.route),
+    q(r.indication), n(r.pre_score), q(r.pre_source), n(r.post_score), q(r.post_time || ''), q(r.response_eos || ''), q(r.exclusion_reason || ''), q(r.comments),
+    q(r.pre_score !== null && r.post_score !== null ? 'Yes' : 'No'), minsToPost(r)
+  ].join(',')));
+  const blob = new Blob(['﻿' + lines.join('\r\n')], {type: 'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  const d = new Date(); a.download = 'PRN_Audit_' + d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0') + '.csv'; a.click();
+}
+async function syncSheets() {
+  if (!CFG.SHEETS_URL) return toast('Sheets URL not set');
+  try { await fetch(CFG.SHEETS_URL, {mode: 'no-cors'}); toast('Sync requested'); } catch (e) { toast('Sync failed'); }
+}
+
+/* ---------- NAV / INIT ---------- */
+function setView(v) {
+  ['add', 'list', 'sum'].forEach(x => $('v-' + x).classList.toggle('active', x === v));
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  if (v === 'list') renderList();
+  if (v === 'sum') renderSummary();
+}
+async function refresh() {
+  rows = await store.list();
+  $('pts').innerHTML = [...new Set(rows.map(r => r.patient_id))].map(p => `<option value="${esc(p)}">`).join('');
+  const pc = rows.filter(r => pending(r) && isEligible(r)).length;
+  $('sub').textContent = rows.length + ' entries' + (pc ? ', ' + pc + ' pass 2 pending' : '');
+}
+
+/* scale the whole UI up on big screens so the form fills the window (min 1x, max 1.8x) */
+function fitScale() {
+  const app = document.querySelector('.app');
+  const z = Math.max(1, Math.min(1.8, window.innerHeight / 570, window.innerWidth / 1200));
+  app.style.setProperty('--z', z);
+  app.style.zoom = z;
+}
+window.addEventListener('resize', fitScale);
+fitScale();
+
+async function init() {
+  const sc = [...Array(11).keys()].map(i => ({value: String(i), label: String(i)})).concat([{value: 'ND', label: 'N/D'}]);
+  buildSeg('cycle', [{value: 'Baseline', label: 'Baseline'}, {value: 'Re-audit', label: 'Re-audit'}], 'cycle');
+  buildSeg('indication', ['Pain', 'Breathlessness', 'Other', 'Not documented'].map(v => ({value: v, label: v})), 'indication');
+  buildSeg('pre', sc, 'pre');
+  buildSeg('preSource', ['eMAR note', 'Nursing notes', 'Not documented'].map(v => ({value: v, label: v})), 'preSource');
+  buildSeg('post', sc, 'post');
+  buildSeg('response', ['Numerical score', 'Narrative only', 'None'].map(v => ({value: v, label: v})), 'response');
+  $('mode').textContent = REMOTE ? 'Supabase' : 'Local test';
+  $('mode').className = 'pill' + (REMOTE ? ' ok' : '');
+  $('analgesic').onchange = () => { syncOther(); if ($('analgesic').value === 'Other') $('analgesicOther').focus(); };
+  $('patientId').oninput = renderRecent;
+  wireSmart('date', parseDate, fmtDate);
+  wireSmart('time', parseTime, v => v);
+  wireSmart('postTime', parseTime, v => v);
+  document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && $('v-add').classList.contains('active')) { e.preventDefault(); save(); } });
+  $('save').onclick = save;
+  $('cancelEdit').onclick = () => resetForm({cycle: S.cycle});
+  $('del').onclick = async () => {
+    if (!confirm('Delete entry ' + editing + '?')) return;
+    try { await store.remove(editing); await refresh(); toast('Deleted'); resetForm({cycle: S.cycle}); } catch (e) { showErr(e.message); }
+  };
+  $('search').oninput = renderList;
+  $('csv').onclick = exportCsv;
+  $('sync').onclick = syncSheets;
+  if (CFG.SHEET_LINK) { $('lnkSheet').href = CFG.SHEET_LINK; $('lnkSheet').classList.remove('hide'); }
+  if (CFG.SUPABASE_LINK) { $('lnkDb').href = CFG.SUPABASE_LINK; $('lnkDb').classList.remove('hide'); }
+  document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => setView(b.dataset.v));
+  try { await refresh(); } catch (e) { $('sub').textContent = 'Could not load: ' + e.message; }
+  resetForm({cycle: lsGet('prn_cycle')});
+}
+
+/* ---------- passcode gate ----------
+   Keeps casual visitors out. It is a screen lock only: it does not protect the database (see Supabase policies). */
+const GATE_HASH = 6931867137133768;
+function gateHash(s) {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0, ch; i < s.length; i++) { ch = s.charCodeAt(i); h1 = Math.imul(h1 ^ ch, 2654435761); h2 = Math.imul(h2 ^ ch, 1597334677); }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507); h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507); h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+}
+function unlock() {
+  document.body.classList.remove('locked');
+  $('gate').classList.add('hide');
+  try { sessionStorage.setItem('prn_ok', '1'); } catch (e) {}
+  init();
+}
+(function gate() {
+  let ok = false;
+  try { ok = sessionStorage.getItem('prn_ok') === '1'; } catch (e) {}
+  if (ok) return unlock();
+  const inp = $('gateInput');
+  inp.focus();
+  const check = () => {
+    if (inp.value.length < 4) { $('gateErr').textContent = ''; return; }
+    if (gateHash('prn-audit-gate|' + inp.value) === GATE_HASH) return unlock();
+    $('gateErr').textContent = 'Wrong passcode';
+    const g = $('gate'); g.classList.remove('shake'); void g.offsetWidth; g.classList.add('shake');
+    inp.value = ''; inp.focus();
+  };
+  inp.addEventListener('input', check);
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') check(); });
+})();
+</script>
+</body>
+</html>
+
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
